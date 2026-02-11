@@ -11,90 +11,113 @@
     <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full">
         <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">🔍 Consultar Dados de Empresa</h1>
         
-        <div class="flex gap-2 mb-6">
-            <input type="text" id="cnpjInput" placeholder="Digite o CNPJ" 
-                class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
-            <button onclick="buscarCNPJ()" id="btnBuscar"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
-                Buscar
-            </button>
+        <div class="space-y-3 mb-6">
+            <div class="flex flex-col md:flex-row gap-2">
+                <select id="fonteInput" class="p-3 bg-white border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm cursor-pointer">
+                    <option value="3">BrasilAPI (Recomendada)</option>
+                    <option value="2">ReceitaWS (Limite 3/min)</option>
+                    <option value="1">Open CNPJA</option>
+                </select>
+                
+                <input type="text" id="cnpjInput" placeholder="Digite o CNPJ" 
+                    class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                
+                <button onclick="buscarCNPJ()" id="btnBuscar"
+                    class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-all active:scale-95">
+                    Buscar
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 italic">* Dica: BrasilAPI é a mais rápida e estável.</p>
         </div>
 
         <div id="resultado" class="hidden space-y-6 border-t pt-6 text-gray-700">
-            <div id="blocoBasico" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            
+            <div id="blocoBasico" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                </div>
 
             <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
-                <h3 class="text-blue-800 font-bold text-sm uppercase mb-3 flex items-center">
-                    📍 Endereço Completo
-                </h3>
-                <div id="blocoEndereco" class="text-sm space-y-1"></div>
+                <h3 class="text-blue-800 font-bold text-sm uppercase mb-3 flex items-center">📍 Endereço Completo</h3>
+                <div id="blocoEndereco" class="text-sm space-y-1 text-blue-900">
+                    </div>
             </div>
 
             <div class="mt-6">
                 <div class="flex justify-between items-center mb-3">
                     <h3 class="text-gray-800 font-bold text-sm uppercase">👥 Quadro de Sócios</h3>
-                    <button onclick="copiarSocios()" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-600 py-1 px-2 rounded">
-                        📋 Copiar Sócios
+                    <button onclick="copiarSocios()" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-600 py-1 px-3 rounded-full font-semibold transition">
+                        📋 Copiar Nomes
                     </button>
                 </div>
-                <div id="listaSocios" class="grid grid-cols-1 gap-2"></div>
+                <div id="listaSocios" class="grid grid-cols-1 gap-2">
+                    </div>
             </div>
         </div>
 
-        <div id="erro" class="hidden p-4 bg-red-100 text-red-700 rounded-lg mt-4"></div>
+        <div id="erro" class="hidden p-4 bg-red-100 text-red-700 rounded-lg mt-4 border border-red-200"></div>
     </div>
 
     <script>
         async function buscarCNPJ() {
             const cnpjInput = document.getElementById('cnpjInput').value;
+            const fonteInput = document.getElementById('fonteInput').value;
             const resDiv = document.getElementById('resultado');
             const erroDiv = document.getElementById('erro');
+            const btnBuscar = document.getElementById('btnBuscar');
 
             resDiv.classList.add('hidden');
             erroDiv.classList.add('hidden');
+            btnBuscar.innerText = "Buscando...";
+            btnBuscar.disabled = true;
 
             try {
-                const response = await fetch('/consultar', { 
-                    method: 'POST', 
-                    body: new URLSearchParams({'cnpj': cnpjInput}) 
-                });
+                const params = new URLSearchParams();
+                params.append('cnpj', cnpjInput);
+                params.append('fonte', fonteInput);
+
+                const response = await fetch('/consultar', { method: 'POST', body: params });
                 const dados = await response.json();
 
-                if (!response.ok || dados.status === "ERROR") throw new Error(dados.message || "CNPJ não encontrado");
+                if (!response.ok || dados.status === "ERROR") {
+                    throw new Error(dados.message || "CNPJ não encontrado");
+                }
 
-                // 1. Preenche Dados Básicos
+                // Renderiza Informações Básicas
                 document.getElementById('blocoBasico').innerHTML = `
-                    <p><strong>🏢 Razão Social:</strong><br>${dados.nome}</p>
-                    <p><strong>🏷️ Fantasia:</strong><br>${dados.fantasia || 'N/A'}</p>
-                    <p><strong>🆔 CNPJ:</strong><br>${dados.cnpj}</p>
-                    <p><strong>📌 Status:</strong><br><span class="text-green-600 font-bold">${dados.situacao}</span></p>
-                    <p><strong>📧 Email:</strong><br>${dados.email || 'N/A'}</p>
-                    <p><strong>📞 Telefone:</strong><br>${dados.telefone || 'N/A'}</p>
+                    <div class="p-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Razão Social</p><p class="font-bold">${dados.nome || 'N/A'}</p></div>
+                    <div class="p-1"><p class="text-[10px] text-gray-400 uppercase font-bold">CNPJ</p><p class="font-mono text-blue-700 font-bold">${dados.cnpj || 'N/A'}</p></div>
+                    <div class="p-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Status</p><p class="text-green-600 font-bold uppercase">${dados.situacao || 'N/A'}</p></div>
+                    <div class="p-1"><p class="text-[10px] text-gray-400 uppercase font-bold">Telefone</p><p>${dados.telefone || 'N/A'}</p></div>
                 `;
 
-                // 2. Preenche Endereço Detalhado
+                // Renderiza Endereço
                 document.getElementById('blocoEndereco').innerHTML = `
-                    <p><strong>Logradouro:</strong> ${dados.logradouro}, ${dados.numero}</p>
-                    ${dados.complemento ? `<p><strong>Complemento:</strong> ${dados.complemento}</p>` : ''}
-                    <p><strong>Bairro:</strong> ${dados.bairro}</p>
-                    <p><strong>CEP:</strong> ${dados.cep}</p>
-                    <p><strong>Cidade/UF:</strong> ${dados.municipio} - ${dados.uf}</p>
+                    <p><strong>Rua:</strong> ${dados.logradouro || ''}, ${dados.numero || ''}</p>
+                    ${dados.complemento ? `<p><strong>Comp:</strong> ${dados.complemento}</p>` : ''}
+                    <p><strong>Bairro:</strong> ${dados.bairro || ''} | <strong>CEP:</strong> ${dados.cep || ''}</p>
+                    <p><strong>Cidade:</strong> ${dados.municipio || ''} - ${dados.uf || ''}</p>
                 `;
 
-                // 3. Preenche QSA
-                document.getElementById('listaSocios').innerHTML = dados.qsa && dados.qsa.length > 0 ? 
-                    dados.qsa.map(s => `
-                        <div class="flex justify-between items-center p-2 bg-gray-50 border rounded-md">
-                            <span class="font-medium text-gray-800 socio-nome">${s.nome}</span>
-                            <span class="text-[10px] bg-blue-100 text-blue-700 px-2 py-1 rounded-full uppercase font-bold">${s.qual}</span>
+                // Renderiza Sócios
+                const listaSocios = document.getElementById('listaSocios');
+                if (dados.qsa && dados.qsa.length > 0) {
+                    listaSocios.innerHTML = dados.qsa.map(s => `
+                        <div class="flex justify-between items-center p-2 bg-gray-50 border rounded-lg">
+                            <span class="font-bold text-gray-700 socio-nome">${s.nome}</span>
+                            <span class="text-[9px] bg-blue-600 text-white px-2 py-1 rounded uppercase font-black">${s.qual || 'Sócio'}</span>
                         </div>
-                    `).join('') : '<p class="text-gray-500 italic">Nenhum sócio informado.</p>';
+                    `).join('');
+                } else {
+                    listaSocios.innerHTML = '<p class="text-gray-400 italic text-center p-2">Sem sócios informados.</p>';
+                }
 
                 resDiv.classList.remove('hidden');
 
             } catch (e) {
                 erroDiv.innerText = e.message;
                 erroDiv.classList.remove('hidden');
+            } finally {
+                btnBuscar.innerText = "Buscar";
+                btnBuscar.disabled = false;
             }
         }
 
@@ -102,7 +125,7 @@
             const nomes = Array.from(document.querySelectorAll('.socio-nome')).map(el => el.innerText).join(', ');
             if (nomes) {
                 navigator.clipboard.writeText(nomes);
-                alert("Nomes dos sócios copiados!");
+                alert("📋 Copiado!");
             }
         }
     </script>
