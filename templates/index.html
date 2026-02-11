@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Consulta CNPJ Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+    <div class="bg-white p-8 rounded-xl shadow-lg max-w-2xl w-full">
+        <h1 class="text-2xl font-bold text-gray-800 mb-6 text-center">🔍 Consultar CNPJ</h1>
+        
+        <div class="flex gap-2 mb-6">
+            <input type="text" id="cnpjInput" placeholder="00.000.000/0000-00" 
+                class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+            <button onclick="buscarCNPJ()" id="btnBuscar"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition">
+                Buscar
+            </button>
+        </div>
+
+        <div id="resultado" class="hidden space-y-4 border-t pt-4 text-gray-700">
+            </div>
+
+        <div id="erro" class="hidden p-4 bg-red-100 text-red-700 rounded-lg mt-4"></div>
+    </div>
+
+    <script>
+        async function buscarCNPJ() {
+            const cnpj = document.getElementById('cnpjInput').value;
+            const btn = document.getElementById('btnBuscar');
+            const resDiv = document.getElementById('resultado');
+            const erroDiv = document.getElementById('erro');
+
+            // Reset de tela
+            resDiv.classList.add('hidden');
+            erroDiv.classList.add('hidden');
+            btn.innerText = "Buscando...";
+            btn.disabled = true;
+
+            const formData = new FormData();
+            formData.append('cnpj', cnpj);
+
+            try {
+                const response = await fetch('/consultar', { method: 'POST', body: formData });
+                const dados = await response.json();
+
+                if (!response.ok) throw new Error(dados.erro);
+
+                resDiv.innerHTML = `
+                    <p><strong>🏢 Razão Social:</strong> ${dados.nome}</p>
+                    <p><strong>🏷️ Nome Fantasia:</strong> ${dados.fantasia || 'N/A'}</p>
+                    <p><strong>📌 Situação:</strong> <span class="text-green-600 font-bold">${dados.situacao}</span></p>
+                    <p><strong>📍 Endereço:</strong> ${dados.logradouro}, ${dados.numero} - ${dados.municipio}/${dados.uf}</p>
+                    <p><strong>📞 Contato:</strong> ${dados.telefone} | ${dados.email}</p>
+                `;
+                resDiv.classList.remove('hidden');
+            } catch (e) {
+                erroDiv.innerText = e.message;
+                erroDiv.classList.remove('hidden');
+            } finally {
+                btn.innerText = "Buscar";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>
