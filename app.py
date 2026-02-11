@@ -18,18 +18,42 @@ def rodar_automacao(dados):
     driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=chrome_options)
     
     try:
-        driver.get("https://www.lancefacil.com/Cadastro")
-        driver.maximize_window()
-        # Preenchimento
+        # Abre a primeira página (pode ser o Google ou uma branca)
+        driver.get("about:blank")
+        
+        # Comando para abrir uma NOVA ABA
+        driver.execute_script("window.open('https://www.lancefacil.com/Cadastro', '_blank');")
+        
+        # Espera um segundo e muda o foco para a nova aba (a última aberta)
+        time.sleep(1)
+        driver.switch_to.window(driver.window_handles[-1])
+        
+        # Aguarda carregar os elementos
+        time.sleep(2)
+
+        print(f"📝 Preenchendo na nova aba: {dados.get('nome')}")
+
+        # Preenchimento dos campos mapeados
         driver.find_element(By.ID, "Cnpj").send_keys(dados.get('cnpj', ''))
         driver.find_element(By.ID, "RazaoSocial").send_keys(dados.get('nome', ''))
         driver.find_element(By.ID, "Email").send_keys(dados.get('email', ''))
         driver.find_element(By.ID, "ConfirmarEmail").send_keys(dados.get('email', ''))
         driver.find_element(By.ID, "Telefone").send_keys(dados.get('telefone', ''))
         driver.find_element(By.ID, "Celular").send_keys(dados.get('telefone', ''))
-    except Exception as e:
-        print(f"Erro na automação: {e}")
+        # --- NOVO CAMPO: CÓDIGO DE REFERÊNCIA ---
+        # Localizamos pelo ID 'form_codref' conforme solicitado
+        try:
+            campo_ref = driver.find_element(By.ID, "form_codref")
+            campo_ref.clear() # Limpa se houver algo
+            campo_ref.send_keys("1025")
+            print("✅ Código de referência 1025 inserido.")
+        except:
+            print("⚠️ Campo 'form_codref' não encontrado nesta página.")
+        
+        print("✅ Preenchimento concluído na nova aba!")
 
+    except Exception as e:
+        print(f"❌ Erro ao automatizar nova aba: {e}")
 @app.route('/')
 def index():
     return render_template('index.html')
