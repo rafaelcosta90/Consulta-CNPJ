@@ -38,22 +38,29 @@ def consultar():
 
 def formatar_resposta(dados, fonte):
     """Padroniza a resposta das duas APIs para o front-end"""
-    if fonte == '1': # CNPJA
+    elif fonte == '1':  # Ajuste específico para a estrutura da CNPJA enviada
         return {
-            'nome': dados.get('company', {}).get('name'),
-            'fantasia': dados.get('alias'),
-            'cnpj': dados.get('taxId'),
-            'situacao': dados.get('status', {}).get('text'),
-            'abertura': dados.get('founded'),
-            'email': dados.get('emails', [{}])[0].get('address') if dados.get('emails') else '',
-            'telefone': dados.get('phones', [{}])[0].get('number') if dados.get('phones') else '',
-            'logradouro': dados.get('address', {}).get('street'),
-            'numero': dados.get('address', {}).get('number'),
-            'bairro': dados.get('address', {}).get('district'),
-            'municipio': dados.get('address', {}).get('city'),
-            'uf': dados.get('address', {}).get('state'),
-            'cep': dados.get('address', {}).get('zip'),
-            'qsa': [{'nome': s.get('name'), 'qual': s.get('role', {}).get('text')} for s in dados.get('company', {}).get('members', [])]
+            'nome': d.get('company', {}).get('name'),
+            'fantasia': d.get('alias'),
+            'cnpj': d.get('taxId'),
+            'situacao': d.get('status', {}).get('text'),
+            'abertura': d.get('founded'),
+            'email': d.get('emails', [{}])[0].get('address') if d.get('emails') else '',
+            'telefone': f"({d.get('phones', [{}])[0].get('area')}) {d.get('phones', [{}])[0].get('number')}" if d.get('phones') else '',
+            'logradouro': d.get('address', {}).get('street'),
+            'numero': d.get('address', {}).get('number'),
+            'complemento': d.get('address', {}).get('details'),
+            'bairro': d.get('address', {}).get('district'),
+            'municipio': d.get('address', {}).get('city'),
+            'uf': d.get('address', {}).get('state'),
+            'cep': d.get('address', {}).get('zip'),
+            # Novo mapeamento para buscar o nome dentro de person -> name
+            'qsa': [
+                {
+                    'nome': s.get('person', {}).get('name'), 
+                    'qual': s.get('role', {}).get('text')
+                } for s in d.get('company', {}).get('members', [])
+            ]
         }
     return dados # ReceitaWS já vem no formato que usamos
 
