@@ -9,36 +9,68 @@ def index():
 
 @app.route('/consultar', methods=['POST'])
 def consultar():
-    cnpj = "".join(filter(str.isdigit, request.form.get('cnpj', '')))
-    fonte = request.form.get('fonte', '1') # 1 para CNPJA, 2 para ReceitaWS
+    # 1. Captura e limpa os dados da requisição
+    cnpj_bruto = request.form.get('cnpj', '')
+    cnpj = "".join(filter(str.isdigit, cnpj_bruto))
+    fonte = request.form.get('fonte', '3') # Padrão: BrasilAPI
 
     if len(cnpj) != 14:
-        return jsonify({'status': 'ERROR', 'message': 'CNPJ inválido.'}), 400
+        return jsonify({'status': 'ERROR', 'message': 'CNPJ deve ter 14 números.'}), 400
 
     try:
+        # 2. Define a URL de acordo com a fonte selecionada
         if fonte == '1':
-            # Fonte: CNPJA
             url = f"https://open.cnpja.com/office/{cnpj}"
+        elif fonte == '3':
+            url = f"https://brasilapi.com.br/api/cnpj/v1/{cnpj}"
         else:
-            # Fonte: ReceitaWS
             url = f"https://receitaws.com.br/v1/cnpj/{cnpj}"
 
-        response = requests.get(url, timeout=10)
+        # 3. Faz a chamada para a API externa
+        response = requests.get(url, timeout=15)
         
         if response.status_code == 200:
-            dados = response.json()
-            # Padronização: A CNPJA tem campos diferentes (ex: 'company' em vez de 'nome')
-            # Vamos ajustar para o front-end receber sempre o mesmo formato
-            return jsonify(formatar_resposta(dados, fonte))
+            dados_brutos = response.json()
+            # 4. Padroniza a resposta para o formato que o HTML espera
+            dados_final = padronizar_dados(dados_brutos, fonte)
+            return jsonify(dados_final)
         
-        return jsonify({'status': 'ERROR', 'message': f'Erro na API ({response.status_code})'}), response.status_code
+        elif response.status_code == 429:
+            return jsonify({'status': 'ERROR', 'message': 'Muitas consultas! Tente outra fonte.'}), 429
+        
+        return jsonify({'status': 'ERROR', 'message': f'Erro na API (Status {response.status_code})'}), 500
 
     except Exception as e:
-        return jsonify({'status': 'ERROR', 'message': str(e)}), 500
+        return jsonify({'status': 'ERROR', 'message': f'Falha na conexão: {str(e)}'}), 500
 
-def formatar_resposta(dados, fonte):
-    """Padroniza a resposta das duas APIs para o front-end"""
-    elif fonte == '1':  # Ajuste específico para a estrutura da CNPJA enviada
+def padronizar_dados(d, fonte):
+    """
+    Padroniza as diferentes estruturas das APIs (BrasilAPI, CNPJA e ReceitaWS)
+    em um único formato para o front-end.
+    """
+    
+    # --- PADRONIZAÇÃO BRASILAPI (Fonte 3) ---
+    if fonte == '3':
+        return {
+            'nome': d.get('razao_social'),
+            'fantasia': d.get('nome_fantasia'),
+            'cnpj': d.get('cnpj'),
+            'situacao': d.get('descricao_situacao_cadastral'),
+            'abertura': d.get('data_inicio_activity'),
+            'email': d.get('email'),
+            'telefone': f"({d.get('ddd_telefone_1', '')[:2]}) {d.get('ddd_telefone_1', '')[2:]}" if d.get('ddd_telefone_1') else '',
+            'logradouro': d.get('logradouro'),
+            'numero': d.get('numero'),
+            'complemento': d.get('complemento'),
+            'bairro': d.get('bairro'),
+            'municipio': d.get('municipio'),
+            'uf': d.get('uf'),
+            'cep': d.get('cep'),
+            'qsa': [{'nome': s.get('nome_socio'), 'qual': s.get('qualificacao_socio')} for s in d.get('qsa', [])]
+        }
+    
+    # --- PADRONIZAÇÃO OPEN CNPJA (Fonte 1) ---
+    elif fonte == '1':
         return {
             'nome': d.get('company', {}).get('name'),
             'fantasia': d.get('alias'),
@@ -54,7 +86,7 @@ def formatar_resposta(dados, fonte):
             'municipio': d.get('address', {}).get('city'),
             'uf': d.get('address', {}).get('state'),
             'cep': d.get('address', {}).get('zip'),
-            # Novo mapeamento para buscar o nome dentro de person -> name
+            # Ajuste crucial: Entrando em company -> members -> person -> name
             'qsa': [
                 {
                     'nome': s.get('person', {}).get('name'), 
@@ -62,7 +94,10 @@ def formatar_resposta(dados, fonte):
                 } for s in d.get('company', {}).get('members', [])
             ]
         }
-    return dados # ReceitaWS já vem no formato que usamos
+
+    # --- PADRONIZAÇÃO RECEITAWS (Fonte 2) ---
+    # O ReceitaWS já é o padrão base, retornamos o JSON como está
+    return d
 
 if __name__ == '__main__':
     app.run(debug=True)
